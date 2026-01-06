@@ -52,8 +52,13 @@ if (btnConnectLive) {
         const liveRutInput = document.getElementById('live-rut');
         const liveClaveInput = document.getElementById('live-clave');
 
-        const rut = (liveRutInput && liveRutInput.value) ? liveRutInput.value : (rutInput ? rutInput.value : '257236498');
-        const clave = (liveClaveInput && liveClaveInput.value) ? liveClaveInput.value : 'Franco25#';
+        const rut = (liveRutInput && liveRutInput.value) ? liveRutInput.value : (rutInput ? rutInput.value : '');
+        const clave = (liveClaveInput && liveClaveInput.value) ? liveClaveInput.value : '';
+
+        if (!rut || !clave) {
+            terminal.innerHTML += `<div class="log-line" style="color: #ef4444">> Error: Debe ingresar RUT y Clave.</div>`;
+            return;
+        }
 
         // Determinar URL del WebSocket
         let wsUrl;
