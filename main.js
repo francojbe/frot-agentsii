@@ -46,10 +46,14 @@ if (btnConnectLive) {
         terminal.innerHTML = ''; // Limpiar logs anteriores
         terminal.innerHTML += `<div class="log-line">> Iniciando protocolo de enlace seguro...</div>`;
 
-        const rutInput = document.getElementById('rut');
-        const claveInput = document.getElementById('clave');
-        const rut = document.getElementById('live-rut').value || (rutInput ? rutInput.value : '257236498');
-        const clave = claveInput ? claveInput.value : 'Franco25#';
+        const rutInput = document.getElementById('rut'); // Del dashboard
+
+        // Priorizar los inputs de la vista "En Vivo"
+        const liveRutInput = document.getElementById('live-rut');
+        const liveClaveInput = document.getElementById('live-clave');
+
+        const rut = (liveRutInput && liveRutInput.value) ? liveRutInput.value : (rutInput ? rutInput.value : '257236498');
+        const clave = (liveClaveInput && liveClaveInput.value) ? liveClaveInput.value : 'Franco25#';
 
         // Determinar URL del WebSocket
         let wsUrl;
