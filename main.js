@@ -228,8 +228,12 @@ function startLiveSession(rut, clave) {
                     if (data.payload && data.payload.datos) {
                         const d = data.payload.datos;
 
-                        // Formateador simple
-                        const clp = (val) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(val);
+                        // Formateador robusto: Si no es número, asume 0
+                        const clp = (val) => {
+                            const num = Number(val);
+                            if (isNaN(num)) return '$0';
+                            return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(num);
+                        };
 
                         const summaryHtml = `
                         <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 1rem; margin-top: 0.5rem; font-family: 'Inter', sans-serif;">
