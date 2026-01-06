@@ -121,9 +121,42 @@ function handleUserLiveInput() {
         // Ignorar
 
     } else if (liveState === 'FINISHED') {
-        addLiveBubble("💬 " + text, 'user'); // Echo
-        // Aquí podríamos conectar con una IA real de chat para pos-análisis
-        addLiveBubble("Entendido. (Funcionalidad de chat avanzado en desarrollo)", 'assistant');
+        const message = text;
+
+        // 1. Mostrar msj usuario
+        addLiveBubble(message, 'user');
+
+        // UI Loading State
+        liveChatInput.disabled = true;
+        liveChatSendBtn.disabled = true;
+
+        // 2. Llamar al endpoint de IA
+        fetch(`${API_BASE}/sii/chat-interaction`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
+            body: JSON.stringify({
+                rut: tempCredentials.rut, // Usamos el RUT capturado en el flujo
+                message: message,
+                history: [] // Por ahora sin historial complejo, o podríamos mantener uno local
+            })
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    addLiveBubble(data.reply, 'assistant');
+                } else {
+                    addLiveBubble("Hubo un error al procesar tu pregunta.", 'assistant');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                addLiveBubble("Error de conexión con el cerebro del asistente.", 'assistant');
+            })
+            .finally(() => {
+                liveChatInput.disabled = false;
+                liveChatSendBtn.disabled = false;
+                liveChatInput.focus();
+            });
     }
 }
 
