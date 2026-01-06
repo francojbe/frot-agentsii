@@ -319,3 +319,37 @@ input:focus {
 .chat-input-area input {
     flex: 1;
 }
+
+/* Terminal Styles */
+.terminal-logs::-webkit-scrollbar {
+    width: 8px;
+}
+
+.terminal-logs::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 4px;
+}
+
+.log-line {
+    margin-bottom: 0.5rem;
+    word-wrap: break-word;
+}
+
+.status-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #4ade80;
+    margin-right: 0.5rem;
+}
+
+.blink {
+    animation: blinker 1.5s linear infinite;
+}
+
+@keyframes blinker {
+    50% {
+        opacity: 0;
+    }
+}

@@ -13,6 +13,106 @@ const chatInput = document.getElementById('chat-input');
 const chatSendBtn = document.getElementById('chat-send-btn');
 const f29Screenshot = document.getElementById('f29-screenshot');
 
+// Navegación (Tabs)
+const navItems = document.querySelectorAll('.nav-item');
+const views = document.querySelectorAll('.view-section');
+
+navItems.forEach(item => {
+    item.addEventListener('click', () => {
+        const targetId = item.getAttribute('data-view');
+        if (!targetId) return;
+
+        // Update Nav UI
+        navItems.forEach(n => n.classList.remove('active'));
+        item.classList.add('active');
+
+        // Switch View
+        views.forEach(v => {
+            v.style.display = (v.id === targetId) ? 'block' : 'none';
+        });
+    });
+});
+
+// --- ASISTENTE EN VIVO (Real-Time WebSocket) ---
+const btnConnectLive = document.getElementById('btn-connect-live');
+let liveSocket = null;
+
+if (btnConnectLive) {
+    btnConnectLive.addEventListener('click', () => {
+        // Evitar doble clic
+        if (liveSocket && liveSocket.readyState === WebSocket.OPEN) return;
+
+        const terminal = document.getElementById('live-logs');
+        terminal.innerHTML = ''; // Limpiar logs anteriores
+        terminal.innerHTML += `<div class="log-line">> Iniciando protocolo de enlace seguro...</div>`;
+
+        const rutInput = document.getElementById('rut');
+        const claveInput = document.getElementById('clave');
+        const rut = document.getElementById('live-rut').value || (rutInput ? rutInput.value : '257236498');
+        const clave = claveInput ? claveInput.value : 'Franco25#';
+
+        // Determinar URL del WebSocket
+        let wsUrl;
+        if (typeof API_BASE !== 'undefined') {
+            let tempUrl = API_BASE.replace(/^http/, 'ws');
+            if (tempUrl.startsWith('//')) {
+                wsUrl = (window.location.protocol === 'https:' ? 'wss:' : 'ws:') + tempUrl;
+            } else {
+                wsUrl = tempUrl;
+            }
+            // Ensure it points to the correct endpoint
+            wsUrl = wsUrl.replace(/\/$/, '') + '/ws/live-agent';
+        } else {
+            wsUrl = 'ws://localhost:8001/ws/live-agent';
+        }
+
+        try {
+            liveSocket = new WebSocket(wsUrl);
+
+            liveSocket.onopen = () => {
+                terminal.innerHTML += `<div class="log-line">> Conectado al servidor. ✅</div>`;
+                terminal.innerHTML += `<div class="log-line">> Autenticando agente para RUT: ${rut}...</div>`;
+
+                liveSocket.send(JSON.stringify({
+                    command: "start_live_scout",
+                    rut: rut,
+                    clave: clave
+                }));
+            };
+
+            liveSocket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.type === 'log') {
+                    const color = data.log_type === 'error' ? '#ef4444' : (data.log_type === 'success' ? '#34d399' : '#4ade80');
+                    const line = document.createElement('div');
+                    line.className = 'log-line';
+                    line.style.color = color;
+                    line.innerText = `> ${data.text}`;
+                    terminal.appendChild(line);
+
+                    // Auto-scroll
+                    terminal.scrollTop = terminal.scrollHeight;
+                }
+            };
+
+            liveSocket.onerror = (error) => {
+                console.error("WS Error:", error);
+                terminal.innerHTML += `<div class="log-line" style="color: #ef4444">> Error de conexión (WebSocket). Asegúrate de que el backend esté corriendo.</div>`;
+            };
+
+            liveSocket.onclose = (e) => {
+                terminal.innerHTML += `<div class="log-line" style="color: #fbbf24">> Sesión finalizada.</div>`;
+                liveSocket = null;
+            };
+
+        } catch (e) {
+            terminal.innerHTML += `<div class="log-line" style="color: #ef4444">> Excepción JS: ${e.message}</div>`;
+        }
+    });
+}
+
+
 // Estado interno del chat
 let chatHistory = [];
 
