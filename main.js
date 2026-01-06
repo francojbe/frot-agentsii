@@ -1,6 +1,6 @@
 import './style.css'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8001';
+const API_BASE = import.meta.env.VITE_API_URL || 'https://recuperadora-api-sii.nojauc.easypanel.host';
 const API_KEY = 'mi_llave_secreta_123';
 
 // Selectores UI
