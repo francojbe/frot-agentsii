@@ -30,101 +30,196 @@ navItems.forEach(item => {
         views.forEach(v => {
             v.style.display = (v.id === targetId) ? 'block' : 'none';
         });
+
+        // Initialize Live Agent view if selected
+        if (targetId === 'view-live-agent') {
+            initLiveChat();
+        }
     });
 });
 
-// --- ASISTENTE EN VIVO (Real-Time WebSocket) ---
-const btnConnectLive = document.getElementById('btn-connect-live');
+// --- ASISTENTE INTERACTIVO (Chat Real-Time) ---
+const liveChatInput = document.getElementById('live-chat-input');
+const liveChatSendBtn = document.getElementById('live-chat-send-btn');
+const liveChatContainer = document.getElementById('live-chat-container');
+const liveActivityLog = document.getElementById('live-activity-log');
+
 let liveSocket = null;
+let liveState = 'WAITING_RUT'; // WAITING_RUT, WAITING_PASS, RUNNING, FINISHED
+let tempCredentials = { rut: '', clave: '' };
 
-if (btnConnectLive) {
-    btnConnectLive.addEventListener('click', () => {
-        // Evitar doble clic
-        if (liveSocket && liveSocket.readyState === WebSocket.OPEN) return;
+function initLiveChat() {
+    // Solo saludar si es la primera vez (contenedor vacío salvo el msj inicial estático)
+    // El HTML ya tiene el mensaje de bienvenida, así que no necesitamos inyectarlo aquí.
+    if (liveChatInput) liveChatInput.focus();
+}
 
-        const terminal = document.getElementById('live-logs');
-        terminal.innerHTML = ''; // Limpiar logs anteriores
-        terminal.innerHTML += `<div class="log-line">> Iniciando protocolo de enlace seguro...</div>`;
+function addLiveBubble(text, role = 'assistant', isHtml = false) {
+    const bubble = document.createElement('div');
+    bubble.className = `chat-bubble ${role}`;
+    if (isHtml) {
+        bubble.innerHTML = text;
+    } else {
+        bubble.innerText = text;
+    }
 
-        const rutInput = document.getElementById('rut'); // Del dashboard
+    // Si es un log del sistema
+    if (role === 'system') {
+        bubble.style.fontSize = '0.85rem';
+        bubble.style.background = 'rgba(0,0,0,0.3)';
+        bubble.style.color = '#4ade80';
+        bubble.style.fontFamily = 'monospace';
+        bubble.style.marginTop = '0.5rem';
+        bubble.style.marginBottom = '0.5rem';
+    }
 
-        // Priorizar los inputs de la vista "En Vivo"
-        const liveRutInput = document.getElementById('live-rut');
-        const liveClaveInput = document.getElementById('live-clave');
+    if (liveChatContainer) {
+        liveChatContainer.appendChild(bubble);
+        liveChatContainer.scrollTop = liveChatContainer.scrollHeight;
+    }
+}
 
-        const rut = (liveRutInput && liveRutInput.value) ? liveRutInput.value : (rutInput ? rutInput.value : '');
-        const clave = (liveClaveInput && liveClaveInput.value) ? liveClaveInput.value : '';
+function handleUserLiveInput() {
+    const text = liveChatInput.value.trim();
+    if (!text) return;
 
-        if (!rut || !clave) {
-            terminal.innerHTML += `<div class="log-line" style="color: #ef4444">> Error: Debe ingresar RUT y Clave.</div>`;
+    // Mostrar mensaje del usuario
+    addLiveBubble(text, 'user');
+    liveChatInput.value = '';
+
+    // Máquina de Estados Simplificada
+    if (liveState === 'WAITING_RUT') {
+        tempCredentials.rut = text;
+
+        // Validación básica
+        if (!text.includes('-') && text.length < 8) {
+            addLiveBubble("El RUT parece inválido. Intenta formato 12345678-k", 'assistant');
             return;
         }
 
-        // Determinar URL del WebSocket
-        let wsUrl;
-        if (typeof API_BASE !== 'undefined') {
-            let tempUrl = API_BASE.replace(/^http/, 'ws');
-            if (tempUrl.startsWith('//')) {
-                wsUrl = (window.location.protocol === 'https:' ? 'wss:' : 'ws:') + tempUrl;
-            } else {
-                wsUrl = tempUrl;
-            }
-            // Ensure it points to the correct endpoint
-            wsUrl = wsUrl.replace(/\/$/, '') + '/ws/live-agent';
-        } else {
-            wsUrl = 'ws://localhost:8001/ws/live-agent';
-        }
+        liveState = 'WAITING_PASS';
+        setTimeout(() => {
+            addLiveBubble(`RUT ${tempCredentials.rut} recibido.`, 'system');
+            addLiveBubble(`Ahora ingresa la <strong>Clave Tributaria</strong> para conectarnos al SII:`, 'assistant', true);
+            liveChatInput.type = 'password';
+        }, 400);
 
-        try {
-            liveSocket = new WebSocket(wsUrl);
+    } else if (liveState === 'WAITING_PASS') {
+        tempCredentials.clave = text;
+        liveChatInput.type = 'text';
+        liveChatInput.disabled = true;
+        liveChatSendBtn.disabled = true;
 
-            liveSocket.onopen = () => {
-                terminal.innerHTML += `<div class="log-line">> Conectado al servidor. ✅</div>`;
-                terminal.innerHTML += `<div class="log-line">> Autenticando agente para RUT: ${rut}...</div>`;
+        addLiveBubble("****************", 'user'); // Masked echo was managed by input type logic above mainly
 
-                liveSocket.send(JSON.stringify({
-                    command: "start_live_scout",
-                    rut: rut,
-                    clave: clave
-                }));
-            };
+        addLiveBubble("Credenciales recibidas. Iniciando agente...", 'system');
+        liveState = 'RUNNING';
 
-            liveSocket.onmessage = (event) => {
-                const data = JSON.parse(event.data);
+        startLiveSession(tempCredentials.rut, tempCredentials.clave);
 
-                if (data.type === 'log') {
-                    const color = data.log_type === 'error' ? '#ef4444' : (data.log_type === 'success' ? '#34d399' : '#4ade80');
-                    const line = document.createElement('div');
-                    line.className = 'log-line';
-                    line.style.color = color;
-                    line.innerText = `> ${data.text}`;
-                    terminal.appendChild(line);
+    } else if (liveState === 'RUNNING') {
+        // Ignorar
 
-                    // Auto-scroll
-                    terminal.scrollTop = terminal.scrollHeight;
-                }
-            };
+    } else if (liveState === 'FINISHED') {
+        addLiveBubble("💬 " + text, 'user'); // Echo
+        // Aquí podríamos conectar con una IA real de chat para pos-análisis
+        addLiveBubble("Entendido. (Funcionalidad de chat avanzado en desarrollo)", 'assistant');
+    }
+}
 
-            liveSocket.onerror = (error) => {
-                console.error("WS Error:", error);
-                terminal.innerHTML += `<div class="log-line" style="color: #ef4444">> Error de conexión (WebSocket). Asegúrate de que el backend esté corriendo.</div>`;
-            };
-
-            liveSocket.onclose = (e) => {
-                terminal.innerHTML += `<div class="log-line" style="color: #fbbf24">> Sesión finalizada.</div>`;
-                liveSocket = null;
-            };
-
-        } catch (e) {
-            terminal.innerHTML += `<div class="log-line" style="color: #ef4444">> Excepción JS: ${e.message}</div>`;
-        }
+if (liveChatSendBtn) {
+    liveChatSendBtn.addEventListener('click', handleUserLiveInput);
+    liveChatInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleUserLiveInput();
     });
 }
 
+function startLiveSession(rut, clave) {
+    let wsUrl;
+    if (typeof API_BASE !== 'undefined') {
+        let tempUrl = API_BASE.replace(/^http/, 'ws');
+        if (tempUrl.startsWith('//')) {
+            wsUrl = (window.location.protocol === 'https:' ? 'wss:' : 'ws:') + tempUrl;
+        } else {
+            wsUrl = tempUrl;
+        }
+        wsUrl = wsUrl.replace(/\/$/, '') + '/ws/live-agent';
+    } else {
+        wsUrl = 'ws://localhost:8001/ws/live-agent';
+    }
 
-// Estado interno del chat
+    try {
+        liveSocket = new WebSocket(wsUrl);
+
+        liveSocket.onopen = () => {
+            if (liveActivityLog) {
+                liveActivityLog.style.display = 'block';
+                liveActivityLog.innerText = '> Conectado al servidor WebSocket.';
+            }
+
+            liveSocket.send(JSON.stringify({
+                command: "start_live_scout",
+                rut: rut,
+                clave: clave
+            }));
+
+            addLiveBubble("Conexión establecida. El agente está entrando al portal...", 'assistant');
+        };
+
+        liveSocket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+
+            if (data.type === 'log') {
+                if (liveActivityLog) liveActivityLog.innerText = `> ${data.text}`; // Log técnico abajo
+
+                // Filtro para el chat: Solo hitos importantes
+                const text = data.text.toLowerCase();
+                let shouldShow = false;
+                let icon = '⚙️';
+
+                if (data.log_type === 'success') { shouldShow = true; icon = '✅'; }
+                if (data.log_type === 'error') { shouldShow = true; icon = '❌'; }
+                if (text.includes('entrando') || text.includes('buscando') || text.includes('detectado')) { shouldShow = true; }
+
+                if (shouldShow) {
+                    addLiveBubble(`${icon} ${data.text}`, 'system');
+                }
+
+                // Finalización
+                if (data.log_type === 'success' && text.includes('finalizado')) {
+                    liveState = 'FINISHED';
+                    liveChatInput.disabled = false;
+                    liveChatSendBtn.disabled = false;
+                    addLiveBubble("Proceso completo. He revisado la propuesta. ¿Tienes alguna duda?", 'assistant');
+                    liveChatInput.focus();
+                }
+
+                // Error crítico
+                if (data.log_type === 'error' && (text.includes('falló') || text.includes('incorrecta'))) {
+                    liveState = 'WAITING_RUT';
+                    liveChatInput.disabled = false;
+                    liveChatSendBtn.disabled = false;
+                    addLiveBubble("No se pudo completar el acceso. Verifiquemos los datos. Ingresa el RUT nuevamente:", 'assistant');
+                    liveChatInput.type = 'text';
+                }
+            }
+        };
+
+        liveSocket.onerror = (error) => {
+            console.error("WS Error:", error);
+            addLiveBubble("Error de conexión con el servidor.", 'system');
+            liveChatInput.disabled = false;
+            liveChatSendBtn.disabled = false;
+        };
+
+    } catch (e) {
+        addLiveBubble(`Error interno: ${e.message}`, 'error');
+    }
+}
+
+
+// --- LÓGICA DASHBOARD (Vieja) ---
 let chatHistory = [];
-
 const fmt = (val) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(val);
 
 function addChatBubble(text, role) {
