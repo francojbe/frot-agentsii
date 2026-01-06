@@ -22,7 +22,9 @@ function addChatBubble(text, role) {
     const bubble = document.createElement('div');
     bubble.className = `chat-bubble ${role}`;
     // Reemplazar saltos de línea con <br>
-    bubble.innerHTML = text.replace(/\n/g, '<br>');
+    bubble.innerHTML = text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
     chatContainer.appendChild(bubble);
 
     // Auto-scroll
