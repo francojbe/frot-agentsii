@@ -223,7 +223,35 @@ function startLiveSession(rut, clave) {
                     liveState = 'FINISHED';
                     liveChatInput.disabled = false;
                     liveChatSendBtn.disabled = false;
-                    addLiveBubble("Proceso completo. He revisado la propuesta. ¿Tienes alguna duda?", 'assistant');
+
+                    // Si viene payload con datitos, mostramos tarjeta
+                    if (data.payload && data.payload.datos) {
+                        const d = data.payload.datos;
+
+                        // Formateador simple
+                        const clp = (val) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(val);
+
+                        const summaryHtml = `
+                        <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 1rem; margin-top: 0.5rem; font-family: 'Inter', sans-serif;">
+                            <h3 style="color: #34d399; margin: 0 0 0.5rem 0; font-size: 0.95rem;">📊 Resumen F29 Propuesto</h3>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.85rem; color: #e2e8f0;">
+                                <div>IVA Débito:</div><div style="text-align: right; font-weight: bold;">${clp(d['538'] || 0)}</div>
+                                <div>IVA Crédito:</div><div style="text-align: right; font-weight: bold;">${clp(d['537'] || 0)}</div>
+                                <div>Remanente Ant.:</div><div style="text-align: right;">${clp(d['504'] || 0)}</div>
+                                <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 4px; margin-top: 4px; color: #fff;">Total a Pagar:</div>
+                                <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 4px; margin-top: 4px; text-align: right; font-weight: bold; color: ${(d['91'] > 0) ? '#fca5a5' : '#34d399'};">
+                                    ${clp(d['91'] || 0)}
+                                </div>
+                            </div>
+                        </div>
+                        <br>
+                        He extraído estos datos clave. ¿Deseas analizar alguna partida en especial?
+                        `;
+                        addLiveBubble(summaryHtml, 'assistant', true);
+                    } else {
+                        addLiveBubble("Proceso completo. He revisado la propuesta. ¿Tienes alguna duda?", 'assistant');
+                    }
+
                     liveChatInput.focus();
                 }
 
