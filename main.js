@@ -203,8 +203,10 @@ function startLiveSession(rut, clave) {
             const data = JSON.parse(event.data);
 
             if (data.type === 'chat') {
-                // Mensaje directo del Auditor IA
-                addLiveBubble(data.text || data.message || data.reply || data.content, 'assistant');
+                // Mensaje directo del Auditor IA con formato Markdown
+                const rawText = data.text || data.message || data.reply || data.content;
+                const formattedHtml = formatMarkdown(rawText);
+                addLiveBubble(formattedHtml, 'assistant', true);
                 return;
             }
 
@@ -444,5 +446,67 @@ if (chatInput) {
     });
 }
 
+
 const logoEl = document.getElementById('app-logo');
 if (logoEl) logoEl.src = "/logo.png";
+
+// --- FORMATTER MARKDOWN SIMPLE ---
+function formatMarkdown(text) {
+    if (!text) return '';
+
+    const lines = text.split('\\n');
+    let inTable = false;
+    let tableHtml = '';
+    let finalOutput = '';
+
+    lines.forEach(line => {
+        const trimmed = line.trim();
+
+        // Detección de Tabla (Filas que empiezan y terminan con |)
+        if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+            if (!inTable) {
+                inTable = true;
+                tableHtml = '<table class="chat-table">';
+                // Asumimos primera línea como header
+                const headers = trimmed.slice(1, -1).split('|').map(h => h.trim());
+                tableHtml += '<thead><tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr></thead><tbody>';
+            } else {
+                // Ignorar separadores tipo |---|---|
+                if (trimmed.replace(/[-\s|]/g, '') === '') {
+                    // es separador, no hacemos nada
+                } else {
+                    const cells = trimmed.slice(1, -1).split('|').map(c => c.trim());
+                    tableHtml += '<tr>' + cells.map(c => `<td>${c}</td>`).join('') + '</tr>';
+                }
+            }
+        } else {
+            // Si estábamos en tabla, cerramos
+            if (inTable) {
+                inTable = false;
+                tableHtml += '</tbody></table>';
+                finalOutput += tableHtml;
+                tableHtml = '';
+            }
+            // Línea normal
+            if (trimmed.startsWith('###')) {
+                finalOutput += `<h3>${trimmed.replace(/#/g, '')}</h3>`;
+            } else {
+                finalOutput += line + '<br>';
+            }
+        }
+    });
+
+    // Si terminó en tabla
+    if (inTable) {
+        tableHtml += '</tbody></table>';
+        finalOutput += tableHtml;
+    }
+
+    // Formato de Negritas **texto**
+    finalOutput = finalOutput.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+    // Formato de Items de lista - 
+    finalOutput = finalOutput.replace(/<br>- /g, '<br>• ');
+
+    return finalOutput;
+}
