@@ -202,6 +202,12 @@ function startLiveSession(rut, clave) {
         liveSocket.onmessage = (event) => {
             const data = JSON.parse(event.data);
 
+            if (data.type === 'chat') {
+                // Mensaje directo del Auditor IA
+                addLiveBubble(data.text || data.message || data.reply || data.content, 'assistant');
+                return;
+            }
+
             if (data.type === 'log') {
                 if (liveActivityLog) liveActivityLog.innerText = `> ${data.text}`; // Log técnico abajo
 
@@ -224,9 +230,10 @@ function startLiveSession(rut, clave) {
                     liveChatInput.disabled = false;
                     liveChatSendBtn.disabled = false;
 
-                    // Si viene payload con datitos, mostramos tarjeta
-                    if (data.payload && data.payload.datos) {
-                        const d = data.payload.datos;
+                    // Si viene payload con datitos de scouting, mostramos tarjeta
+                    const scouting = data.payload ? data.payload.scouting : null;
+                    if (scouting && scouting.datos) {
+                        const d = scouting.datos;
 
                         // Formateador robusto: Si no es número, asume 0
                         const clp = (val) => {
@@ -252,8 +259,6 @@ function startLiveSession(rut, clave) {
                         He extraído estos datos clave. ¿Deseas analizar alguna partida en especial?
                         `;
                         addLiveBubble(summaryHtml, 'assistant', true);
-                    } else {
-                        addLiveBubble("Proceso completo. He revisado la propuesta. ¿Tienes alguna duda?", 'assistant');
                     }
 
                     liveChatInput.focus();
