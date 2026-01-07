@@ -454,7 +454,8 @@ if (logoEl) logoEl.src = "/logo.png";
 function formatMarkdown(text) {
     if (!text) return '';
 
-    const lines = text.split('\\n');
+    // Separar por saltos de línea reales (\n) O literales (\\n) para mayor robustez
+    const lines = text.split(/\r?\n|\\n/);
     let inTable = false;
     let tableHtml = '';
     let finalOutput = '';
