@@ -490,7 +490,13 @@ function formatMarkdown(text) {
             }
             // Línea normal
             if (trimmed.startsWith('###')) {
-                finalOutput += `<h3>${trimmed.replace(/#/g, '')}</h3>`;
+                const titleText = trimmed.replace(/#/g, '');
+                // Si es un título de Alerta/Peligro (que contiene 🚨 o ALERTA), lo ponemos en ROJO
+                if (titleText.includes('🚨') || titleText.toUpperCase().includes('ALERTA')) {
+                    finalOutput += `<h3 style="color: #ef4444 !important;">${titleText}</h3>`;
+                } else {
+                    finalOutput += `<h3>${titleText}</h3>`;
+                }
             } else {
                 finalOutput += line + '<br>';
             }
