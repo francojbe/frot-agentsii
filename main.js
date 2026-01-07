@@ -227,7 +227,7 @@ function startLiveSession(rut, clave) {
                 }
 
                 // Finalización
-                if (data.log_type === 'success' && text.includes('finalizado')) {
+                if (data.log_type === 'success' && (text.includes('finalizado') || text.includes('completada'))) {
                     liveState = 'FINISHED';
                     liveChatInput.disabled = false;
                     liveChatSendBtn.disabled = false;
